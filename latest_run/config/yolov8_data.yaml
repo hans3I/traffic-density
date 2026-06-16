@@ -1,0 +1,9 @@
+train: /content/project/data/splits/train_images.txt
+val: /content/project/data/splits/val_images.txt
+test: /content/project/data/splits/test_images.txt
+nc: 4
+names:
+- motor
+- auto
+- car
+- heavy

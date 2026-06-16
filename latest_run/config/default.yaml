@@ -1,0 +1,129 @@
+system:
+  name: Traffic Intersection Image Detector
+  version: 2.0.0
+paths:
+  base: project
+  data_raw: project/data/raw
+  data_annotations: project/data/annotations
+  data_processed: project/data/processed
+  data_splits: project/data/splits
+  config: project/config
+  outputs: project/outputs
+  src: project/src
+drive:
+  model_path: /content/drive/MyDrive/traffic_light_ai_project/best.pt
+  auto_mount: true
+test:
+  mode: image
+  sample_limit_mb: 500
+  session_history: project/outputs/used_images.json
+  selected_image_path: project/data/processed/images/bmd45_train/train_11345_220518.png
+  selected_image_dimensions:
+  - 1920
+  - 1080
+dataset:
+  name: BMD_45_vehicle_dataset
+  names:
+  - motor
+  - auto
+  - car
+  - heavy
+  remapped_classes:
+    motor: 0
+    motorcycle: 0
+    motorbike: 0
+    bike: 0
+    two_wheeler: 0
+    2_wheeler: 0
+    2wheeler: 0
+    bicycle: 0
+    auto: 1
+    auto_rickshaw: 1
+    rickshaw: 1
+    three_wheeler: 1
+    3_wheeler: 1
+    3wheeler: 1
+    car: 2
+    vehicle: 2
+    hatchback: 2
+    sedan: 2
+    suv: 2
+    muv: 2
+    van: 2
+    jeep: 2
+    bus: 3
+    truck: 3
+    heavy: 3
+    heavy_vehicle: 3
+    lcv: 3
+    mini_bus: 3
+    tempo_traveller: 3
+    lorry: 3
+    trailer: 3
+  img_size: 640
+  split_seed: 42
+  bmd45:
+    repo_id: iisc-aim/BMD-45
+    sample_limit_gb: 10
+    random_seed: 42
+    max_workers: 16
+    download_batch_size: 64
+    splits:
+      train: BMD-45-Train
+      val: BMD-45-Val
+training:
+  model: yolov8n.pt
+  imgsz: 640
+  epochs: 100
+  batch: 16
+  patience: 20
+  project: runs/train
+  name: yolov8n_custom
+inference:
+  model_path: project/outputs/best.pt
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  device: 0
+roi_counting:
+  roi_polygons:
+    North:
+    - - 672
+      - 21
+    - - 1248
+      - 21
+    - - 1113
+      - 453
+    - - 806
+      - 453
+    East:
+    - - 1190
+      - 378
+    - - 1881
+      - 302
+    - - 1881
+      - 777
+    - - 1190
+      - 626
+    South:
+    - - 806
+      - 669
+    - - 1113
+      - 669
+    - - 1248
+      - 1058
+    - - 672
+      - 1058
+    West:
+    - - 38
+      - 302
+    - - 729
+      - 378
+    - - 729
+      - 626
+    - - 38
+      - 777
+output_files:
+  label_quality_report: label_quality_report.md
+  detection_result_json: detection_result.json
+  annotated_image: annotated_intersection.jpg
+SKIP_TRAINING: false

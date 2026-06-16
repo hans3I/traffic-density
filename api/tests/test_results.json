@@ -1,0 +1,379 @@
+{
+  "timestamp": "2026-06-10T03:33:11.109920",
+  "detection": {
+    "num_samples": 100,
+    "per_class": {
+      "motor": {
+        "precision": 0.765,
+        "recall": 0.6003,
+        "f1_score": 0.6727,
+        "ap_50": 0.5082,
+        "tp": 407,
+        "fp": 125,
+        "fn": 271,
+        "gt_count": 678,
+        "pred_count": 532
+      },
+      "car": {
+        "precision": 0.057,
+        "recall": 0.0463,
+        "f1_score": 0.0511,
+        "ap_50": 0.0909,
+        "tp": 13,
+        "fp": 215,
+        "fn": 268,
+        "gt_count": 281,
+        "pred_count": 228
+      },
+      "heavy": {
+        "precision": 0.8,
+        "recall": 0.381,
+        "f1_score": 0.5161,
+        "ap_50": 0.3091,
+        "tp": 56,
+        "fp": 14,
+        "fn": 91,
+        "gt_count": 147,
+        "pred_count": 70
+      }
+    },
+    "overall": {
+      "precision": 0.5735,
+      "recall": 0.4304,
+      "f1_score": 0.4917,
+      "mAP_50": 0.3027,
+      "total_tp": 476,
+      "total_fp": 354,
+      "total_fn": 630,
+      "avg_inference_time_ms": 274.25
+    }
+  },
+  "scheduling": {
+    "density_based": {
+      "total_throughput": 511.0,
+      "total_waiting_time": 19209.0,
+      "avg_waiting_time": 960.45,
+      "total_time": 176.0,
+      "fairness_index": 0.6667,
+      "lane_green_counts": [
+        9,
+        2,
+        8,
+        1
+      ],
+      "lane_wait_times": [
+        1557.0,
+        10272.0,
+        2436.0,
+        4944.0
+      ],
+      "history": [
+        {
+          "cycle": 1,
+          "green_lane": 3,
+          "green_time": 15,
+          "throughput": 25.0,
+          "waiting_time": 480.0
+        },
+        {
+          "cycle": 2,
+          "green_lane": 1,
+          "green_time": 9,
+          "throughput": 32.0,
+          "waiting_time": 360.0
+        },
+        {
+          "cycle": 3,
+          "green_lane": 4,
+          "green_time": 6,
+          "throughput": 30.0,
+          "waiting_time": 258.0
+        },
+        {
+          "cycle": 4,
+          "green_lane": 1,
+          "green_time": 5,
+          "throughput": 18.0,
+          "waiting_time": 255.0
+        },
+        {
+          "cycle": 5,
+          "green_lane": 3,
+          "green_time": 5,
+          "throughput": 32.0,
+          "waiting_time": 210.0
+        },
+        {
+          "cycle": 6,
+          "green_lane": 3,
+          "green_time": 8,
+          "throughput": 14.0,
+          "waiting_time": 456.0
+        },
+        {
+          "cycle": 7,
+          "green_lane": 3,
+          "green_time": 6,
+          "throughput": 11.0,
+          "waiting_time": 432.0
+        },
+        {
+          "cycle": 8,
+          "green_lane": 3,
+          "green_time": 5,
+          "throughput": 8.0,
+          "waiting_time": 435.0
+        },
+        {
+          "cycle": 9,
+          "green_lane": 3,
+          "green_time": 9,
+          "throughput": 16.0,
+          "waiting_time": 918.0
+        },
+        {
+          "cycle": 10,
+          "green_lane": 3,
+          "green_time": 5,
+          "throughput": 7.0,
+          "waiting_time": 585.0
+        },
+        {
+          "cycle": 11,
+          "green_lane": 3,
+          "green_time": 9,
+          "throughput": 15.0,
+          "waiting_time": 1188.0
+        },
+        {
+          "cycle": 12,
+          "green_lane": 1,
+          "green_time": 5,
+          "throughput": 48.0,
+          "waiting_time": 515.0
+        },
+        {
+          "cycle": 13,
+          "green_lane": 1,
+          "green_time": 7,
+          "throughput": 13.0,
+          "waiting_time": 812.0
+        },
+        {
+          "cycle": 14,
+          "green_lane": 1,
+          "green_time": 5,
+          "throughput": 6.0,
+          "waiting_time": 645.0
+        },
+        {
+          "cycle": 15,
+          "green_lane": 1,
+          "green_time": 9,
+          "throughput": 16.0,
+          "waiting_time": 1278.0
+        },
+        {
+          "cycle": 16,
+          "green_lane": 1,
+          "green_time": 12,
+          "throughput": 20.0,
+          "waiting_time": 1860.0
+        },
+        {
+          "cycle": 17,
+          "green_lane": 1,
+          "green_time": 12,
+          "throughput": 20.0,
+          "waiting_time": 2016.0
+        },
+        {
+          "cycle": 18,
+          "green_lane": 1,
+          "green_time": 28,
+          "throughput": 47.0,
+          "waiting_time": 5068.0
+        },
+        {
+          "cycle": 19,
+          "green_lane": 2,
+          "green_time": 5,
+          "throughput": 50,
+          "waiting_time": 415.0
+        },
+        {
+          "cycle": 20,
+          "green_lane": 2,
+          "green_time": 11,
+          "throughput": 83.0,
+          "waiting_time": 1023.0
+        }
+      ]
+    },
+    "fixed_time": {
+      "total_throughput": 847.0,
+      "total_waiting_time": 22605.0,
+      "avg_waiting_time": 1130.25,
+      "total_time": 300.0,
+      "fairness_index": 1.0,
+      "lane_green_counts": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "lane_wait_times": [
+        7380.0,
+        4815.0,
+        4560.0,
+        5850.0
+      ],
+      "history": [
+        {
+          "cycle": 1,
+          "green_lane": 1,
+          "green_time": 15.0,
+          "throughput": 16.0,
+          "waiting_time": 615.0
+        },
+        {
+          "cycle": 2,
+          "green_lane": 2,
+          "green_time": 15.0,
+          "throughput": 12.0,
+          "waiting_time": 1170.0
+        },
+        {
+          "cycle": 3,
+          "green_lane": 3,
+          "green_time": 15.0,
+          "throughput": 75.0,
+          "waiting_time": 825.0
+        },
+        {
+          "cycle": 4,
+          "green_lane": 4,
+          "green_time": 15.0,
+          "throughput": 40.0,
+          "waiting_time": 675.0
+        },
+        {
+          "cycle": 5,
+          "green_lane": 1,
+          "green_time": 15.0,
+          "throughput": 32.0,
+          "waiting_time": 585.0
+        },
+        {
+          "cycle": 6,
+          "green_lane": 2,
+          "green_time": 15.0,
+          "throughput": 36.0,
+          "waiting_time": 525.0
+        },
+        {
+          "cycle": 7,
+          "green_lane": 3,
+          "green_time": 15.0,
+          "throughput": 12.0,
+          "waiting_time": 855.0
+        },
+        {
+          "cycle": 8,
+          "green_lane": 4,
+          "green_time": 15.0,
+          "throughput": 24.0,
+          "waiting_time": 1080.0
+        },
+        {
+          "cycle": 9,
+          "green_lane": 1,
+          "green_time": 15.0,
+          "throughput": 56.0,
+          "waiting_time": 975.0
+        },
+        {
+          "cycle": 10,
+          "green_lane": 2,
+          "green_time": 15.0,
+          "throughput": 44.0,
+          "waiting_time": 945.0
+        },
+        {
+          "cycle": 11,
+          "green_lane": 3,
+          "green_time": 15.0,
+          "throughput": 32.0,
+          "waiting_time": 1155.0
+        },
+        {
+          "cycle": 12,
+          "green_lane": 4,
+          "green_time": 15.0,
+          "throughput": 64.0,
+          "waiting_time": 825.0
+        },
+        {
+          "cycle": 13,
+          "green_lane": 1,
+          "green_time": 15.0,
+          "throughput": 28.0,
+          "waiting_time": 990.0
+        },
+        {
+          "cycle": 14,
+          "green_lane": 2,
+          "green_time": 15.0,
+          "throughput": 60.0,
+          "waiting_time": 660.0
+        },
+        {
+          "cycle": 15,
+          "green_lane": 3,
+          "green_time": 15.0,
+          "throughput": 16.0,
+          "waiting_time": 1005.0
+        },
+        {
+          "cycle": 16,
+          "green_lane": 4,
+          "green_time": 15.0,
+          "throughput": 52.0,
+          "waiting_time": 1050.0
+        },
+        {
+          "cycle": 17,
+          "green_lane": 1,
+          "green_time": 15.0,
+          "throughput": 24.0,
+          "waiting_time": 1620.0
+        },
+        {
+          "cycle": 18,
+          "green_lane": 2,
+          "green_time": 15.0,
+          "throughput": 64.0,
+          "waiting_time": 2205.0
+        },
+        {
+          "cycle": 19,
+          "green_lane": 3,
+          "green_time": 15.0,
+          "throughput": 80.0,
+          "waiting_time": 2355.0
+        },
+        {
+          "cycle": 20,
+          "green_lane": 4,
+          "green_time": 15.0,
+          "throughput": 80.0,
+          "waiting_time": 2490.0
+        }
+      ]
+    },
+    "improvements": {
+      "throughput_pct": -39.67,
+      "waiting_time_pct": 15.02
+    }
+  }
+}
