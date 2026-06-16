@@ -58,9 +58,15 @@ traffic-density/
 * Koneksi internet aktif untuk eksekusi backend pertama kali (karena metadata/gambar BMD-45 diunduh otomatis dari Hugging Face)
 * File model YOLO diletakkan di `latest_run/outputs/best.pt`, atau dengan mengatur variabel lingkungan `TRAFFICAI_MODEL_PATH` ke jalur model yang valid
 
+## Menjalankan dari Clone Baru
+
+Repository ini sengaja tidak menyimpan folder dan file hasil instalasi lokal seperti `node_modules/`, `.next/`, `.venv/`, `api/.venv/`, cache Python, log, dan file `.env`. Semua file tersebut akan dibuat ulang secara lokal setelah menjalankan perintah instalasi di bawah.
+
+Jalankan backend dan frontend di dua terminal terpisah.
+
 ## Pengaturan Backend
 
-Buka terminal di direktori utama proyek, kemudian jalankan perintah berikut:
+Buka terminal pertama di direktori utama proyek, kemudian jalankan perintah berikut:
 
 ```powershell
 cd api
@@ -91,7 +97,7 @@ Kemudian aktifkan kembali environment tersebut:
 
 ## Pengaturan Frontend
 
-Buka terminal kedua di direktori utama proyek, lalu jalankan:
+Buka terminal kedua di direktori utama proyek, lalu jalankan perintah berikut dari root project:
 
 ```powershell
 npm install
@@ -102,6 +108,8 @@ npm run dev
 Frontend akan berjalan pada alamat: `http://localhost:3000`
 
 Pastikan server backend tetap berjalan di port `8000` selama menggunakan frontend. Rute API Next.js pada `src/pages/api/traffic.ts` bertindak sebagai proxy untuk meneruskan permintaan dari frontend ke `http://127.0.0.1:8000`.
+
+Jika repository baru saja di-clone, `npm install` akan membuat folder `node_modules/`, sedangkan `npm run dev` akan membuat folder `.next/`. Keduanya tidak perlu di-commit karena sudah dikecualikan oleh `.gitignore`.
 
 ## Endpoint API
 
