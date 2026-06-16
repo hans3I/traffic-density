@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { getBackendUrl } from "@/lib/backend-url";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const BACKEND_URL = getBackendUrl();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
