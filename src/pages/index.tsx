@@ -15,7 +15,7 @@ const projectStructure = String.raw`traffic-density/
 \-- README.md`;
 
 const backendSetup = String.raw`cd api
-py -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000`;
