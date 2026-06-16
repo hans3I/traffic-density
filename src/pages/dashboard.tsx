@@ -224,7 +224,7 @@ export default function DashboardPage() {
       applyBackendState(state);
     } catch (error: any) {
       console.error('Error analyzing traffic:', error);
-      setError('Gagal melakukan analisis AI. Pastikan backend Python sudah dinyalakan (python -m uvicorn main:app --port 8000).');
+      setError('Gagal melakukan analisis AI. Pastikan backend Python sudah berjalan.');
     } finally {
       setIsLoading(false);
     }
