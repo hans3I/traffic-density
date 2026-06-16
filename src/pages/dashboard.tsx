@@ -35,6 +35,20 @@ interface StoredSession {
 }
 
 const ACTIVE_SESSION_STORAGE_KEY = 'trafficai.activeSession';
+const POLL_INTERVAL_MS = 4000;
+
+async function readErrorMessage(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    const data = await response.json();
+    if (typeof data.detail === 'string') return data.detail;
+    if (typeof data.message === 'string') return data.message;
+  }
+
+  const text = await response.text();
+  return text || 'Terjadi kesalahan saat menghubungi backend.';
+}
 
 function mapBackendLanes(lanesData: BackendLane[]): LaneData[] {
   return lanesData.map((lane) => ({
@@ -101,6 +115,27 @@ export default function DashboardPage() {
     saveActiveSession(state.session_id);
   };
 
+  const resetAnalysisState = (nextError?: string | null) => {
+    setIsAnalyzing(false);
+    setSessionId(null);
+    setCycleCount(0);
+    setSpeed(1);
+    clearActiveSession();
+    setError(nextError ?? null);
+    setLanes((prev) =>
+      prev.map((lane) => ({
+        ...lane,
+        imageUrl: null,
+        density: 0,
+        vehicleCounts: { motor: 0, auto: 0, car: 0, heavy: 0 },
+        lightStatus: 'OFF',
+        greenTime: 0,
+        remainingTime: 0,
+        hasPassed: false,
+      }))
+    );
+  };
+
   useEffect(() => {
     const storedSession = readActiveSession();
 
@@ -114,6 +149,7 @@ export default function DashboardPage() {
         const response = await fetch(`/api/traffic?session_id=${storedSession.sessionId}`);
         if (!response.ok) {
           clearActiveSession();
+          setError('Sesi sebelumnya sudah berakhir atau tidak lagi tersedia.');
           return;
         }
 
@@ -160,6 +196,11 @@ export default function DashboardPage() {
       try {
         const response = await fetch(`/api/traffic?session_id=${sessionId}`);
         if (!response.ok) {
+          if (response.status === 404) {
+            resetAnalysisState('Sesi analisis sudah berakhir karena idle atau melewati batas waktu.');
+            return;
+          }
+
           console.warn('Polling failed or skipped');
           return;
         }
@@ -170,7 +211,7 @@ export default function DashboardPage() {
         console.error('Polling error:', err);
         // Don't show error immediately on polling, might be temporary
       }
-    }, 2000);
+    }, POLL_INTERVAL_MS);
 
     return () => clearInterval(pollInterval);
   }, [sessionId, isAnalyzing]);
@@ -216,7 +257,7 @@ export default function DashboardPage() {
       });
       
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = await readErrorMessage(response);
         throw new Error(errorText || 'Koneksi ke server AI terputus');
       }
       
@@ -239,22 +280,7 @@ export default function DashboardPage() {
       }
     }
 
-    setIsAnalyzing(false);
-    setSessionId(null);
-    setCycleCount(0);
-    clearActiveSession();
-    setLanes((prev) =>
-      prev.map((lane) => ({
-        ...lane,
-        imageUrl: null,
-        density: 0,
-        vehicleCounts: { motor: 0, auto: 0, car: 0, heavy: 0 },
-        lightStatus: 'OFF',
-        greenTime: 0,
-        remainingTime: 0,
-        hasPassed: false,
-      }))
-    );
+    resetAnalysisState(null);
   };
 
   const cycleSpeed = async () => {
@@ -390,7 +416,7 @@ export default function DashboardPage() {
             <div className="mb-8 flex items-center justify-between gap-4 text-xs text-on-surface-variant">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <span>Analisis AI aktif - polling setiap 2 detik</span>
+                <span>Analisis AI aktif - polling setiap 4 detik</span>
               </div>
               {cycleCount > 0 && <span className="font-label-mono">Siklus #{cycleCount}</span>}
             </div>

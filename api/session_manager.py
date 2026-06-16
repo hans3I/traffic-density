@@ -1,14 +1,48 @@
-import asyncio
+import os
 import time
 import uuid
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
-from datetime import datetime
 import threading
 
 from engine import AnalysisEngine
 from bmd45_loader import BMD45Loader
 from backend_logs import backend_logs
+
+
+def _running_on_hosted_server() -> bool:
+    return any(
+        os.getenv(env_name)
+        for env_name in ("RAILWAY_ENVIRONMENT", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID")
+    )
+
+
+HOSTED_SERVER = _running_on_hosted_server()
+
+
+def _hosted_limit(name: str, default: int) -> Optional[int]:
+    if not HOSTED_SERVER:
+        return None
+
+    raw_value = os.getenv(name)
+    if not raw_value:
+        return default
+
+    try:
+        parsed = int(raw_value)
+    except ValueError:
+        return default
+
+    return parsed if parsed > 0 else default
+
+
+MAX_CONCURRENT_SESSIONS = _hosted_limit("TRAFFICAI_MAX_CONCURRENT_SESSIONS", 2)
+MAX_SESSION_AGE_SECONDS = _hosted_limit("TRAFFICAI_MAX_SESSION_AGE_SECONDS", 180)
+IDLE_SESSION_TIMEOUT_SECONDS = _hosted_limit("TRAFFICAI_IDLE_SESSION_TIMEOUT_SECONDS", 90)
+
+
+class SessionLimitExceededError(Exception):
+    pass
 
 @dataclass
 class LaneState:
@@ -31,6 +65,8 @@ class SessionState:
     lanes: int
     max_green_time: int
     lane_data: List[LaneState]
+    created_at: float
+    last_accessed_at: float
     current_green_lane: int = -1
     last_update: float = 0.0
     phase_start_time: float = 0.0
@@ -43,10 +79,57 @@ class SessionManager:
     def __init__(self):
         self.sessions: Dict[str, SessionState] = {}
         self.lock = threading.Lock()
+        self.pending_session_creations = 0
         self.engine = AnalysisEngine()
         self.bmd45 = BMD45Loader()
         # Start background refresh loop
         self._start_refresh_loop()
+
+    def _reserve_creation_slot(self):
+        if MAX_CONCURRENT_SESSIONS is None:
+            return
+
+        with self.lock:
+            active_sessions = len(self.sessions) + self.pending_session_creations
+            if active_sessions >= MAX_CONCURRENT_SESSIONS:
+                raise SessionLimitExceededError(
+                    f"Server sedang sibuk. Maksimal {MAX_CONCURRENT_SESSIONS} sesi aktif di deployment ini."
+                )
+            self.pending_session_creations += 1
+
+    def _release_creation_slot(self):
+        if MAX_CONCURRENT_SESSIONS is None:
+            return
+
+        with self.lock:
+            self.pending_session_creations = max(0, self.pending_session_creations - 1)
+
+    def _touch_session(self, session: SessionState, accessed_at: Optional[float] = None):
+        session.last_accessed_at = accessed_at or time.time()
+
+    def _get_expiry_reason(self, session: SessionState, current_time: Optional[float] = None) -> Optional[str]:
+        now = current_time or time.time()
+
+        if MAX_SESSION_AGE_SECONDS is not None and now - session.created_at >= MAX_SESSION_AGE_SECONDS:
+            return f"expired after {MAX_SESSION_AGE_SECONDS} seconds"
+
+        if IDLE_SESSION_TIMEOUT_SECONDS is not None and now - session.last_accessed_at >= IDLE_SESSION_TIMEOUT_SECONDS:
+            return f"expired after {IDLE_SESSION_TIMEOUT_SECONDS} seconds of inactivity"
+
+        return None
+
+    def _remove_session_locked(self, session_id: str, reason: str):
+        session = self.sessions.pop(session_id, None)
+        if not session:
+            return
+
+        print(f"[SessionManager] Session {session_id} removed: {reason}")
+        backend_logs.add(
+            "INFO",
+            "SessionManager",
+            f"Session {session_id} removed",
+            details={"session_id": session_id, "reason": reason},
+        )
 
     def _sort_queue(self, session: SessionState):
         """Sort cycle queue based on current densities without downloading new images."""
@@ -68,116 +151,136 @@ class SessionManager:
 
     def create_session(self, lanes: int, max_green_time: int) -> SessionState:
         """Create a new session, download images, and run initial analysis."""
+        self._reserve_creation_slot()
         session_id = str(uuid.uuid4())[:8]
-        print(f"[SessionManager] Creating session {session_id} with {lanes} lanes")
-        backend_logs.add(
-            "INFO",
-            "SessionManager",
-            f"Creating session {session_id}",
-            details={"session_id": session_id, "lanes": lanes, "max_green_time": max_green_time},
-        )
+        try:
+            print(f"[SessionManager] Creating session {session_id} with {lanes} lanes")
+            backend_logs.add(
+                "INFO",
+                "SessionManager",
+                f"Creating session {session_id}",
+                details={"session_id": session_id, "lanes": lanes, "max_green_time": max_green_time},
+            )
 
-        # Download N images for initial state
-        image_paths = self.bmd45.download_images(lanes)
+            # Download N images for initial state
+            image_paths = self.bmd45.download_images(lanes)
 
-        # Initialize and analyze lanes
-        lane_data = []
-        for i in range(lanes):
-            lane_data.append(LaneState(
-                id=i + 1,
-                image_path="",
-                image_url="",
-                density=0.0,
-                vehicle_counts={"motor": 0, "car": 0, "heavy": 0},
-                green_time=0,
-                light_status="RED",
-            ))
+            # Initialize and analyze lanes
+            lane_data = []
+            for i in range(lanes):
+                lane_data.append(LaneState(
+                    id=i + 1,
+                    image_path="",
+                    image_url="",
+                    density=0.0,
+                    vehicle_counts={"motor": 0, "car": 0, "heavy": 0},
+                    green_time=0,
+                    light_status="RED",
+                ))
 
-        for i, img_path in enumerate(image_paths):
-            lane = lane_data[i]
-            if img_path:
-                result = self.engine.analyze_image(img_path, max_green_time)
-                lane.image_path = img_path
-                lane.image_url = result["image_url"]
-                lane.density = result["density"]
-                lane.vehicle_counts = result["vehicle_counts"]
-                lane.green_time = result["green_time"]
-                lane.detections = result["detections"]
+            for i, img_path in enumerate(image_paths):
+                lane = lane_data[i]
+                if img_path:
+                    result = self.engine.analyze_image(img_path, max_green_time)
+                    lane.image_path = img_path
+                    lane.image_url = result["image_url"]
+                    lane.density = result["density"]
+                    lane.vehicle_counts = result["vehicle_counts"]
+                    lane.green_time = result["green_time"]
+                    lane.detections = result["detections"]
 
-        current_time = time.time()
-        session = SessionState(
-            session_id=session_id,
-            lanes=lanes,
-            max_green_time=max_green_time,
-            lane_data=lane_data,
-            current_green_lane=-1,
-            last_update=current_time,
-            phase_start_time=current_time,
-            is_active=True,
-            cycle_count=0,
-            cycle_queue=[]
-        )
+            current_time = time.time()
+            session = SessionState(
+                session_id=session_id,
+                lanes=lanes,
+                max_green_time=max_green_time,
+                lane_data=lane_data,
+                created_at=current_time,
+                last_accessed_at=current_time,
+                current_green_lane=-1,
+                last_update=current_time,
+                phase_start_time=current_time,
+                is_active=True,
+                cycle_count=0,
+                cycle_queue=[]
+            )
 
-        # Sort initially
-        self._sort_queue(session)
-        
-        # Pop first lane
-        green_lane = session.cycle_queue.pop(0)
-        session.lane_data[green_lane].light_status = "GREEN"
-        session.lane_data[green_lane].remaining_time = session.lane_data[green_lane].green_time
-        
-        session.current_green_lane = green_lane
-        session.phase_start_time = current_time
+            # Sort initially
+            self._sort_queue(session)
 
-        # Add to sessions dict only after it's fully initialized
+            # Pop first lane
+            green_lane = session.cycle_queue.pop(0)
+            session.lane_data[green_lane].light_status = "GREEN"
+            session.lane_data[green_lane].remaining_time = session.lane_data[green_lane].green_time
+
+            session.current_green_lane = green_lane
+            session.phase_start_time = current_time
+
+            # Add to sessions dict only after it's fully initialized
+            with self.lock:
+                self.sessions[session_id] = session
+
+            print(f"[SessionManager] Session {session_id} created. Initial green lane: {green_lane + 1}")
+            backend_logs.add(
+                "INFO",
+                "SessionManager",
+                f"Session {session_id} created",
+                details={"session_id": session_id, "initial_green_lane": green_lane + 1},
+            )
+
+            # Start pre-fetching for the first green lane
+            threading.Thread(target=self._prefetch_or_update, args=(session, green_lane), daemon=True).start()
+
+            return session
+        finally:
+            self._release_creation_slot()
+
+    def stop_session(self, session_id: str, reason: str = "stopped by user"):
         with self.lock:
-            self.sessions[session_id] = session
-            
-        print(f"[SessionManager] Session {session_id} created. Initial green lane: {green_lane + 1}")
-        backend_logs.add(
-            "INFO",
-            "SessionManager",
-            f"Session {session_id} created",
-            details={"session_id": session_id, "initial_green_lane": green_lane + 1},
-        )
-        
-        # Start pre-fetching for the first green lane
-        threading.Thread(target=self._prefetch_or_update, args=(session, green_lane), daemon=True).start()
-        
-        return session
-
-    def stop_session(self, session_id: str):
-        with self.lock:
-            if session_id in self.sessions:
-                del self.sessions[session_id]
-                print(f"[SessionManager] Session {session_id} stopped and removed.")
-                backend_logs.add(
-                    "INFO",
-                    "SessionManager",
-                    f"Session {session_id} stopped and removed",
-                    details={"session_id": session_id},
-                )
+            self._remove_session_locked(session_id, reason)
 
     def get_session(self, session_id: str) -> Optional[SessionState]:
         with self.lock:
-            return self.sessions.get(session_id)
+            session = self.sessions.get(session_id)
+            if not session:
+                return None
+
+            expiry_reason = self._get_expiry_reason(session)
+            if expiry_reason:
+                self._remove_session_locked(session_id, expiry_reason)
+                return None
+
+            self._touch_session(session)
+            return session
 
     def update_speed(self, session_id: str, speed: int) -> Optional[SessionState]:
         with self.lock:
             session = self.sessions.get(session_id)
             if session:
+                expiry_reason = self._get_expiry_reason(session)
+                if expiry_reason:
+                    self._remove_session_locked(session_id, expiry_reason)
+                    return None
+
                 current_time = time.time()
                 # Calculate old elapsed time so we can adjust phase_start_time without jumping
                 old_elapsed = (current_time - session.phase_start_time) * session.speed_multiplier
                 session.speed_multiplier = speed
                 # Shift start time back to match the new speed curve
                 session.phase_start_time = current_time - (old_elapsed / speed)
+                self._touch_session(session, current_time)
             return session
 
     def update_max_green_time(self, session_id: str, max_green_time: int) -> Optional[SessionState]:
         with self.lock:
             session = self.sessions.get(session_id)
             if session:
+                expiry_reason = self._get_expiry_reason(session)
+                if expiry_reason:
+                    self._remove_session_locked(session_id, expiry_reason)
+                    return None
+
+                current_time = time.time()
                 session.max_green_time = max_green_time
                 # Recalculate green times for all lanes
                 for lane in session.lane_data:
@@ -187,6 +290,7 @@ class SessionManager:
                     green_lane = session.lane_data[session.current_green_lane]
                     if green_lane.light_status == "GREEN":
                         green_lane.remaining_time = green_lane.green_time
+                self._touch_session(session, current_time)
             return session
 
     def _prefetch_or_update(self, session: SessionState, lane_idx: int):
@@ -276,11 +380,17 @@ class SessionManager:
             try:
                 current_time = time.time()
                 sessions_to_refresh = []
+                sessions_to_remove = []
                 with self.lock:
-                    for session in list(self.sessions.values()):
+                    for session_id, session in list(self.sessions.items()):
                         if not session.is_active:
                             continue
-                            
+
+                        expiry_reason = self._get_expiry_reason(session, current_time)
+                        if expiry_reason:
+                            sessions_to_remove.append((session_id, expiry_reason))
+                            continue
+                             
                         if session.current_green_lane >= 0:
                             green_lane = session.lane_data[session.current_green_lane]
                             elapsed = (current_time - session.phase_start_time) * session.speed_multiplier
@@ -289,7 +399,10 @@ class SessionManager:
                             
                             if remaining <= 0:
                                 sessions_to_refresh.append(session)
-                                
+
+                for session_id, reason in sessions_to_remove:
+                    self.stop_session(session_id, reason=reason)
+                                 
                 # Process light swapping INSTANTLY outside the loop
                 for session in sessions_to_refresh:
                     try:

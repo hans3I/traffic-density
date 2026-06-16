@@ -6,7 +6,7 @@ import os
 import time
 
 from backend_logs import backend_logs
-from session_manager import SessionManager
+from session_manager import SessionManager, SessionLimitExceededError
 
 app = FastAPI(
     title="Traffic Light AI Backend",
@@ -100,6 +100,17 @@ async def start_analysis(request: StartRequest):
             details={"session_id": session.session_id, "lanes": request.lanes},
         )
         return session_manager.to_dict(session)
+    except HTTPException:
+        raise
+    except SessionLimitExceededError as e:
+        backend_logs.add(
+            "WARN",
+            "TrafficAPI",
+            "Traffic analysis session rejected due to concurrency limit",
+            details={"lanes": request.lanes, "max_green_time": request.max_green_time},
+            exc=e,
+        )
+        raise HTTPException(status_code=429, detail=str(e))
     except Exception as e:
         backend_logs.add(
             "ERROR",

@@ -21,8 +21,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const response = await fetch(`${BACKEND_URL}/api/v1/logs?${params.toString()}`);
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || `Backend error: ${response.status}`);
+      const errorText = await response.text();
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("application/json")) {
+        return res.status(response.status).send(errorText);
+      }
+
+      return res.status(response.status).json({ message: errorText || `Backend error: ${response.status}` });
     }
 
     const data = await response.json();
